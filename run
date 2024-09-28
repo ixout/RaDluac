@@ -1,0 +1,72 @@
+#!/usr/bin/python
+
+import argparse
+import os
+import sys
+import logging
+import utils
+from vendors import Vendors,VendorMap
+
+
+class LuaAnalyzeException(Exception): pass
+
+
+if __name__ == '__main__':
+	
+	parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,description="unluac for some vendors' devices")
+	parser.add_argument("-i", dest="input", type=str, help="input filename")
+	parser.add_argument("-o", dest="output", type=str, help="output filename")
+	parser.add_argument("-v", dest="vendor", type=str, help="The name of the target device vendor\nSupports:\nxiaomi,tplink,official")
+	
+	args = parser.parse_args()
+	
+	input_file = args.input
+	if input_file is None:
+		raise LuaAnalyzeException("No input file")
+	if not os.path.isfile(input_file):
+		raise LuaAnalyzeException("Not a file should be")
+	
+	if args.vendor is None:
+		raise LuaAnalyzeException("No vendor provided")
+	try:
+		vendor = VendorMap[args.vendor]
+	except KeyError:
+		raise KeyError("Not supported vendor")
+		
+	tmp_file = input_file + ".dec"
+	
+	output_file = args.output
+	if output_file is None:
+		output_file = input_file + "_dis.lua"
+	
+	with open(input_file, 'rb') as ifile:
+		data = ifile.read()
+	
+	if vendor == Vendors.LUA_OFFICIAL:
+		status = utils.java_unluac(input_file, output_file)
+		if status:
+			logging.error("failed")
+		sys.exit(status)
+	
+	lua_mod = utils.choose_module(vendor)
+	
+	header = lua_mod.GlobalHead.parse(data)
+	lua_mod.lua_type_define(header)
+	odd_file = lua_mod.Luac.parse(data)
+	
+	std_mod = utils.get_std51()
+	
+	std_mod.lua_type_set(4, 8, 8, 4)
+	
+	odd_file.global_head = std_mod.GlobalHead.parse(std_mod.Header)
+	
+	luac_file = std_mod.Luac.build(odd_file)
+	
+	with open(tmp_file, 'wb') as tfile:
+		tfile.write(luac_file)
+		
+	status = utils.java_unluac(tmp_file, output_file)
+	if status:
+		logging.error("failed")
+	os.system("rm "+tmp_file)
+	sys.exit(status)
