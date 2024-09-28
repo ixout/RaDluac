@@ -238,15 +238,15 @@ Luac = Struct(
 )
 
 
-def lua_type_set(size_int, size_size_t, size_lua_number, size_instruction):
+def lua_type_set(size_int, size_size_t, size_instruction, size_lua_number):
     class h(object):
-        def __init__(self, size_int, size_size_t, size_lua_number, size_instruction):
+        def __init__(self, size_int, size_size_t, size_instruction, size_lua_number):
             self.size_int = size_int
             self.size_size_t = size_size_t
-            self.size_lua_number = size_lua_number
             self.size_instruction = size_instruction
+            self.size_lua_number = size_lua_number            
 
-    head = h(size_int, size_size_t, size_lua_number, size_instruction)
+    head = h(size_int, size_size_t, size_instruction, size_lua_number)
     lua_type_define(head)
 
 

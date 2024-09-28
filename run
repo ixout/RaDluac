@@ -56,7 +56,7 @@ if __name__ == '__main__':
 	
 	std_mod = utils.get_std51()
 	
-	std_mod.lua_type_set(4, 8, 8, 4)
+	std_mod.lua_type_set(4, 8, 4, 8)
 	
 	odd_file.global_head = std_mod.GlobalHead.parse(std_mod.Header)
 	
