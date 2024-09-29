@@ -7,9 +7,21 @@ import logging
 import utils
 from vendors import Vendors,VendorMap
 
-
 class LuaAnalyzeException(Exception): pass
 
+def parse_odd_luac(lua_mod, data):
+	
+	header = lua_mod.GlobalHead.parse(data)
+	lua_mod.lua_type_define(header)
+	
+	return lua_mod.Luac.parse(data)
+	
+def build_std_luac_51(std_mod, odd_file):
+	
+	std_mod.lua_type_set(4, 8, 4, 8)
+	odd_file.global_head = std_mod.GlobalHead.parse(std_mod.Header)
+	
+	return std_mod.Luac.build(odd_file)
 
 if __name__ == '__main__':
 	
@@ -49,18 +61,15 @@ if __name__ == '__main__':
 		sys.exit(status)
 	
 	lua_mod = utils.choose_module(vendor)
-	
-	header = lua_mod.GlobalHead.parse(data)
-	lua_mod.lua_type_define(header)
-	odd_file = lua_mod.Luac.parse(data)
+	if not utils.IsVendorMatch(lua_mod,data):
+		logging.error("Vendor not match")
+		sys.exit(1)
+		
+	odd_file = parse_odd_luac(lua_mod, data)
 	
 	std_mod = utils.get_std51()
 	
-	std_mod.lua_type_set(4, 8, 4, 8)
-	
-	odd_file.global_head = std_mod.GlobalHead.parse(std_mod.Header)
-	
-	luac_file = std_mod.Luac.build(odd_file)
+	luac_file = build_std_luac_51(std_mod, odd_file)
 	
 	with open(tmp_file, 'wb') as tfile:
 		tfile.write(luac_file)

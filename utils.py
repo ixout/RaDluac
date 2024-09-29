@@ -37,3 +37,11 @@ def get_std51():
 	sys.path.append(modules_path)
 	
 	return importlib.import_module("stdmod51")
+	
+def IsVendorMatch(mod,data):
+	
+	length = len(mod.Header)
+	
+	header = data[:length]
+	
+	return header == mod.Header

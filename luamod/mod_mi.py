@@ -4,6 +4,7 @@ import logging
 
 class LuaDecodeException(Exception): pass
 
+Header = bytes([0x1B,0x46, 0x61, 0x74, 0x65, 0x2F, 0x5A, 0x1B, 0x51, 0x00, 0x01, 0x04, 0x04, 0x04, 0x08, 0x04])
 
 LuaInt = None
 LuaSize_t = None
@@ -165,8 +166,8 @@ LuaDatatype = Enum(Byte,
 
 class LuaDatatypeAdapter(Adapter):
     def _decode(self, obj, context, path):
-        if obj == 12:
-            logging.warning("translate may not success")
+#        if obj == 12:
+#            logging.warning("translate may not success")
         return LuaDatatype.parse(bytes([obj - 3]))
 
     def _encode(self, obj, context, path):

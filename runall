@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [ ! $1 ]; then
+	echo "Usage: runall <vendor>"
+	exit 1
+fi
+vendor=$1
+script_path=$(realpath "$0")
+script_dir=$(dirname "$script_path")
+current_dir=$(pwd)
+runpath=$script_dir"/run"
+
+find "$current_dir" -type f -name "*.lua" ! -name "*lua_dis.lua" | \
+while read -r lua_file; \
+do
+	
+	$runpath -i $lua_file -v $vendor
+	
+done

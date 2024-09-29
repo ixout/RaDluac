@@ -1,5 +1,4 @@
-from construct import Struct, Const, Enum, Byte, Bytes, Flag, Int8ul, this, Int32ul, Int64ul, \
-    Int32sl, Int64sl, Float32l, Float64l, LazyBound, Array, Switch, Pass, BitStruct, BitsInteger, Adapter
+from construct import Struct, Const, Enum, Byte, Bytes, Flag, Int8ul, this, Int32ul, Int64ul, Int32sl, Int64sl, Float32l, Float64l, LazyBound, Array, Switch, Pass, BitStruct, BitsInteger, Adapter
 
 
 class LuaDecodeException(Exception): pass
