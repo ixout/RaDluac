@@ -2,7 +2,7 @@ import subprocess
 import os
 import importlib
 import sys
-from vendors import ModuleMap
+from vendors import ModuleMap,VersionMap
 
 def dirpath():
 	
@@ -11,10 +11,9 @@ def dirpath():
 	
 	return(path)
 
-def java_unluac(ifile,ofile):
+def De_unluac(ifile, ofile, version):
 	
-	
-	unluac_path = dirpath() + "/unluac/unluac.jar"
+	unluac_path = dirpath() + "/Decompiler/unluac.jar"
 	
 	cmd = ["java", "-jar", unluac_path, ifile, "--output", ofile]
 	
@@ -22,23 +21,38 @@ def java_unluac(ifile,ofile):
 	
 	return ret.returncode
 	
+def De_luadec(ifile, ofile, version):
+
+	dec_name = VersionMap[version.upper()]["dec"]
+	
+	luadec_path = dirpath() + "/Decompiler/" + dec_name
+	
+	cmd = [luadec_path, ifile]
+	
+	with open(ofile, 'w') as f:
+		ret = subprocess.run(cmd, stdout=f, stderr=f)
+	
+	return ret.returncode
+	
 def choose_module(vendor):
 
-	modules_path = dirpath() + "/luamod/"
+	modules_path = dirpath() + "/luamods/"
 	sys.path.append(modules_path)
 	
 	module_name = ModuleMap[vendor.upper()]
 	
 	return importlib.import_module(module_name)
 	
-def get_std51():
+def get_stdmod(version):
 	
-	modules_path = dirpath() + "/luamod/"
+	mod_name = VersionMap[version.upper()]["mod"]
+	
+	modules_path = dirpath() + "/luamods/"
 	sys.path.append(modules_path)
 	
-	return importlib.import_module("stdmod51")
+	return importlib.import_module(mod_name)
 	
-def IsVendorMatch(mod,data):
+def IsVendorMatch(mod, data):
 	
 	length = len(mod.Header)
 	

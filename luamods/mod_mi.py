@@ -1,17 +1,44 @@
-from construct import Struct, Const, Enum, Byte, Bytes, Flag, Int8ul, this, Int32ul, Int64ul, Int32sl, Int64sl, Float32l, Float64l, LazyBound, Array, Switch, Pass, BitStruct, BitsInteger, Adapter
+from construct import Struct, Const, Enum, Byte, Bytes, Flag, Int8ul, this, Int32ul, Int64ul, Int32sl, Int64sl, Double, Single, LazyBound, Array, Switch, Pass, Adapter, evaluate, BitStruct, BitsInteger, integer2bits
+import logging
 
 
 class LuaDecodeException(Exception): pass
 
-
-Header = bytes([0x1B, 0x4C, 0x75, 0x61, 0x51, 0x00, 0x01, 0x04, 0x08, 0x04, 0x08, 0x00])
+Header = bytes([0x1B,0x46, 0x61, 0x74, 0x65, 0x2F, 0x5A, 0x1B, 0x51, 0x00, 0x01, 0x04, 0x04, 0x04, 0x08, 0x04])
 
 LuaInt = None
 LuaSize_t = None
 LuaNumber = None
 LuaInstruction = None
 
-Version = Enum(Byte, lua51=0x51, lua52=0x52, lua53=0x53)
+OpCodeMap = [20, 36, 0, 24, 19, 24, 1, 34, 30, 26, 33, 32, 13, 29, 15, 11, 28, 9, 4, 23, 23, 21, 25, 25, 2, 16, 31, 6, 10, 35, 37, 22, 18, 17, 14, 27, 0, 12, 5, 8, 7, 3]
+
+
+class InstructionsAdapter(Adapter):
+    def _encode(self, obj, context, path):
+        obj.opcode = OpCode.parse(integer2bits(OpCodeMap.index(int(obj.opcode)), 6))
+        return obj
+
+    def _decode(self, obj, context, path):
+        if int(obj.opcode) == 2:
+#            logging.warning("find mi opcode")
+            if obj.C == 0:
+                op = 29
+            elif obj.C == 1:
+                op = 0
+            elif obj.C == 2:
+                op = 32
+            elif obj.C == 3:
+                op = 4
+            else:
+                LuaDecodeException("opcode error")
+            obj.opcode = OpCode.parse(integer2bits(OpCodeMap[op], 6))
+        else:
+            obj.opcode = OpCode.parse(integer2bits(OpCodeMap[int(obj.opcode)], 6))
+        return obj
+
+
+Version = Enum(Byte, LUA51=0x51, LUA52=0x52, LUA53=0x53)
 Format = Enum(Byte, official=0)
 Endian = Enum(Byte, big_endian=0, little_endian=1)
 OpCode = Enum(BitsInteger(6), OP_MOVE=0,
@@ -54,14 +81,42 @@ OpCode = Enum(BitsInteger(6), OP_MOVE=0,
               OP_VARARG=37,
               )
 
-# String = PascalString(LazyBound(lambda: LuaSize_t), "ascii")
+Instruction = InstructionsAdapter(BitStruct(
+    "B" / BitsInteger(9),
+    "C" / BitsInteger(9),
+    "A" / BitsInteger(8),
+    "opcode" / OpCode,
+))
+
+
+class StrAdapter(Adapter):
+    def __init__(self, key, subcon):
+        assert key < 0xff
+        self.key = key
+        super().__init__(subcon)
+
+    def _decode(self, obj, context, path):
+        l = []
+        key = evaluate(self.key, context)
+        for i in obj:
+            l.append(i ^ key)
+        return bytes(l)
+
+    def _encode(self, obj, context, path):
+        l = []
+        key = evaluate(self.key, context)
+        for i in obj:
+            l.append(i ^ key)
+        return bytes(l)
+
+
 String = Struct(
     "size" / LazyBound(lambda: LuaSize_t),
-    "str" / Bytes(this.size)
+    "str" / StrAdapter((this.size * 13 + 55) & 0xff, Bytes(this.size))
 )
 
 GlobalHead = Struct(
-    "signature" / Const(b"\x1bLua"),
+    "signature" / Const(b"\x1bFate/Z\x1b"),
     "version" / Version,
     "format" / Format,
     "endian" / Endian,
@@ -69,24 +124,17 @@ GlobalHead = Struct(
     "size_size_t" / Int8ul,
     "size_instruction" / Int8ul,
     "size_lua_number" / Int8ul,
-    "lua_num_valid" / Byte,
+    "lua_num_valid" / Byte
 )
 
 ProtoHead = Struct(
-    "source" / String,
-    "linedefined" / Int32ul,
-    "lastlinedefined" / Int32ul,
-    "nups" / Int8ul,
     "numparams" / Int8ul,
+    "source" / String,
+    "nups" / Int8ul,
+    "linedefined" / Int32ul,
     "is_vararg" / Int8ul,
+    "lastlinedefined" / Int32ul,
     "maxstacksize" / Int8ul
-)
-
-Instruction = BitStruct(
-    "B" / BitsInteger(9),
-    "C" / BitsInteger(9),
-    "A" / BitsInteger(8),
-    "opcode" / OpCode,
 )
 
 
@@ -112,18 +160,41 @@ LuaDatatype = Enum(Byte,
                    LUA_TTABLE=5,
                    LUA_TFUNCTION=6,
                    LUA_TUSERDATA=7,
-                   LUA_TTHREAD=8, )
+                   LUA_TTHREAD=8,
+                   LUA_MIDATA=9)
 
-Constant = Struct(
-    "data_type" / LuaDatatype,
+
+class LuaDatatypeAdapter(Adapter):
+    def _decode(self, obj, context, path):
+#        if obj == 12:
+#            logging.warning("translate may not success")
+        return LuaDatatype.parse(bytes([obj - 3]))
+
+    def _encode(self, obj, context, path):
+        return bytes([int(obj) + 3])
+
+
+class ConstantAdapter(Adapter):
+    def _decode(self, obj, context, path):
+        if int(obj.data_type) == 9:
+            obj.data_type = LuaDatatype.parse(b'\x03')
+            obj.data = float(obj.data)
+        return obj
+
+    def _encode(self, obj, context, path):
+        return obj
+
+
+Constant = ConstantAdapter(Struct(
+    "data_type" / LuaDatatypeAdapter(Byte),
     "data" / Switch(this.data_type,
-                    {"LUA_INIL": Pass, "LUA_TBOOLEAN": Flag,
-                     "LUA_TNUMBER": LazyBound(lambda: LuaNumber), "LUA_TSTRING": String})
-)
+                    {"LUA_TNIL": Pass, "LUA_TBOOLEAN": Flag,
+                     "LUA_TNUMBER": LazyBound(lambda: LuaNumber), "LUA_TSTRING": String, "LUA_MIDATA": Int32ul})
+))
 
 Constants = Struct(
     "sizek" / Int32ul,
-    "constant" / Array(this.sizek, Constant),
+    "constant" / Array(this.sizek, Constant)
 )
 
 LineInfo = Struct(
@@ -174,7 +245,7 @@ def lua_type_set(size_int, size_size_t, size_instruction, size_lua_number):
             self.size_int = size_int
             self.size_size_t = size_size_t
             self.size_instruction = size_instruction
-            self.size_lua_number = size_lua_number
+            self.size_lua_number = size_lua_number            
 
     head = h(size_int, size_size_t, size_instruction, size_lua_number)
     lua_type_define(head)
@@ -197,9 +268,9 @@ def lua_type_define(head):
         LuaDecodeException("Unsupported size int")
 
     if head.size_lua_number == 8:
-        LuaNumber = Float64l
+        LuaNumber = Double
     elif head.size_lua_number == 4:
-        LuaNumber = Float32l
+        LuaNumber = Single
     else:
         LuaDecodeException("Unsupported size int")
 

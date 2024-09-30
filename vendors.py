@@ -14,6 +14,12 @@ VendorMap = {
 }
 
 ModuleMap = {
-"LUA_MI" : "mod_mi"
+"LUA_MI" : "mod_mi",
+"LUA_TPLINK" :"mod_tplink"
+}
 
+VersionMap = {
+"LUA51" : {"mod" : "stdmod51", "dec" : "luadec51"},
+"LUA52" : {"mod" : "stdmod52", "dec" : "luadec52"},
+"LUA53" : {"mod" : "stdmod53", "dec" : "luadec53"},
 }

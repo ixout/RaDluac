@@ -9,14 +9,19 @@ from vendors import Vendors,VendorMap
 
 class LuaAnalyzeException(Exception): pass
 
+Version = None
+
 def parse_odd_luac(lua_mod, data):
 	
 	header = lua_mod.GlobalHead.parse(data)
 	lua_mod.lua_type_define(header)
 	
+	global Version
+	Version = header.version
+	
 	return lua_mod.Luac.parse(data)
 	
-def build_std_luac_51(std_mod, odd_file):
+def build_stdluac(std_mod, odd_file, version):
 	
 	std_mod.lua_type_set(4, 8, 4, 8)
 	odd_file.global_head = std_mod.GlobalHead.parse(std_mod.Header)
@@ -26,9 +31,11 @@ def build_std_luac_51(std_mod, odd_file):
 if __name__ == '__main__':
 	
 	parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter,description="unluac for some vendors' devices")
-	parser.add_argument("-i", dest="input", type=str, help="input filename")
-	parser.add_argument("-o", dest="output", type=str, help="output filename")
+	parser.add_argument("-i", dest="input", type=str, help="Input filename")
+	parser.add_argument("-o", dest="output", type=str, help="Output filename")
 	parser.add_argument("-v", dest="vendor", type=str, help="The name of the target device vendor\nSupports:\nxiaomi,tplink,official")
+	parser.add_argument("-d", action="store_true", default=False, help="Use luadec to decompile otherwise use unluac")
+	parser.add_argument("-s", action="store_true", default=False, help="Keep the restored standard format luac file")
 	
 	args = parser.parse_args()
 	
@@ -45,6 +52,8 @@ if __name__ == '__main__':
 	except KeyError:
 		raise KeyError("Not supported vendor")
 		
+	Decompile = utils.De_luadec if args.d else utils.De_unluac
+		
 	tmp_file = input_file + ".dec"
 	
 	output_file = args.output
@@ -55,9 +64,9 @@ if __name__ == '__main__':
 		data = ifile.read()
 	
 	if vendor == Vendors.LUA_OFFICIAL:
-		status = utils.java_unluac(input_file, output_file)
+		status = Decompile(input_file, output_file, Version)
 		if status:
-			logging.error("failed")
+			logging.error("Failed")
 		sys.exit(status)
 	
 	lua_mod = utils.choose_module(vendor)
@@ -67,15 +76,20 @@ if __name__ == '__main__':
 		
 	odd_file = parse_odd_luac(lua_mod, data)
 	
-	std_mod = utils.get_std51()
+	if not Version or Version == None:
+		log.error("No version found")
+		sys.exit(1)
 	
-	luac_file = build_std_luac_51(std_mod, odd_file)
+	std_mod = utils.get_stdmod(Version)
+	
+	luac_file = build_stdluac(std_mod, odd_file, Version)
 	
 	with open(tmp_file, 'wb') as tfile:
 		tfile.write(luac_file)
 		
-	status = utils.java_unluac(tmp_file, output_file)
+	status = Decompile(tmp_file, output_file, Version)
 	if status:
 		logging.error("failed")
-	os.system("rm "+tmp_file)
+	if not args.s:
+		os.system("rm "+tmp_file)
 	sys.exit(status)
