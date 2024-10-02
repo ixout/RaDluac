@@ -6,6 +6,19 @@ Since the code decompiled by unluac contains a lot of redundant code, I wrote a 
 
 [blog](https://ixout.github.io/posts/15971/)
 
+## Usage
+```
+optional arguments:
+  -h, --help  show this help message and exit
+  -i INPUT    Input filename
+  -o OUTPUT   Output filename
+  -v VENDOR   The name of the target device vendor
+              Supports:
+              xiaomi,tplink,official
+  -d          Use luadec to decompile otherwise use unluac
+  -s          Keep the restored standard format luac file
+  -u          Remove some redundant statements from the generated code, Only valid for unluac result(Temporarily used for testing)
+```
 
 
 ## Thanks for
