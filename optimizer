@@ -1,0 +1,149 @@
+#!/bin/python
+import re
+import os
+import sys
+
+v_pattern = r'L\d+_\d+'
+vv_pattern = r'^\s*(L\d+_\d+)\s*=\s*(L\d+_\d+)\s*$'
+vs_pattern = r'^\s*(L\d+_\d+)\s*=\s*(.*)\s*$'
+mvs_pattern = r'^\s*(L\d+_\d+)(\s*,\s*(L\d+_\d+))+\s*=\s*(.*)\s*$'
+fv_pattern = r'^(\s*L\d+_\d+\[\d+\])\s*=\s*(\s*L\d+_\d+)\s*$'
+fn_pattern = r'^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(L\d+_\d+)\s*$'
+func_pattern = r'^function\s+(L\d+_\d+)\s*\((.*)\)\s*$'
+target_pattern = r'^\s*L.*$'
+pa_pattern = r'\(.+?\)'
+optimized = {}
+maybe_opts = {}
+func = {}
+line_num = 0
+
+def delete_line(num):
+	
+	if str(num) in optimized:
+		del optimized[str(num)]
+
+def line_hadnle(string):
+
+	if string.find("{") != -1:
+		return string
+	
+	e_pos = string.find('=')
+	
+	if e_pos == -1:
+		matches = re.findall(v_pattern, string)
+		for match in matches:
+			if match in maybe_opts:
+				if maybe_opts[match][1] > line_num - 15:
+					string = string.replace(match, maybe_opts[match][0])
+					delete_line(maybe_opts[match][1])
+				del maybe_opts[match]
+		return string
+		
+	match = re.search(vv_pattern, string)
+	
+	if match:
+		left = match.group(1)
+		right = match.group(2)
+		if right in maybe_opts:
+			tmp = right
+			if maybe_opts[right][1] > line_num - 12:
+				string = string.replace(right, maybe_opts[right][0])
+				delete_line(maybe_opts[right][1])
+				right = maybe_opts[right][0]
+			del maybe_opts[tmp]
+			maybe_opts[left] = (right, line_num)
+		else:
+			if left in maybe_opts:
+				del maybe_opts[left]
+			maybe_opts[left] = (right, line_num)
+		return string
+	
+	match = re.match(vs_pattern, string)
+	
+	if match:
+		left = match.group(1)
+		right = match.group(2)
+		left_a, right_a = string.split('=',1)
+		
+		matches = re.findall(v_pattern, right)
+		
+		if matches != []:
+			for var in matches:
+				if var in maybe_opts:
+					if maybe_opts[var][1] > line_num - 15:
+						right_a = right_a.replace(var, maybe_opts[var][0])
+						delete_line(maybe_opts[var][1])
+					del maybe_opts[var]
+			if right_a.find("(") == -1:
+				if left in maybe_opts:
+					del maybe_opts[left]
+				maybe_opts[left] = (right_a.strip(), line_num)
+			return left_a + '=' +right_a
+		
+		else:
+			if left in maybe_opts:
+				del maybe_opts[left]
+			maybe_opts[left] = (right, line_num)
+			return string
+			
+	match = re.match(fv_pattern, string)
+	
+	if match:
+		right = match.group(2)
+		left_a, right_a = string.split('=',1)
+		
+		if right in maybe_opts:
+			if maybe_opts[right][1] > line_num - 12:
+				string = string.replace(right, maybe_opts[right][0])
+				delete_line(maybe_opts[right][1])
+			del maybe_opts[right]
+			return string
+			
+	match = re.match(mvs_pattern, string)
+			
+	if match:
+		left_a, right_a = string.split('=',1)
+		matches = re.findall(v_pattern, right_a)
+		if matches != []:
+			for var in matches:
+				if var in maybe_opts:
+					if maybe_opts[var][1] > line_num - 15:
+						right_a = right_a.replace(var, maybe_opts[var][0])
+						delete_line(maybe_opts[var][1])
+					del maybe_opts[var]
+		return left_a + '=' +right_a
+	
+	match = re.match(vs_pattern, string)
+	return string			
+if __name__ == '__main__':
+	
+	ifile = sys.argv[1]
+	
+	with open(ifile, 'r', encoding='utf-8') as f:
+		lines = f.readlines()
+		
+	for i, line in enumerate(lines):
+		line_num += 1
+		add = True
+		if line.startswith('function'):
+			match = re.match(func_pattern, line)
+			func_lab = match.group(1)
+			func[func_lab] = str(line_num)
+			maybe_opts.clear()
+		elif re.match(target_pattern, line):
+			line = line_hadnle(line)
+		else:
+			match = re.match(fn_pattern, line)
+			if match:
+				func_name = match.group(1)
+				func_lab = match.group(2) 
+				if func_lab in func:
+					optimized[func[func_lab]] = optimized[func[func_lab]].replace(func_lab, func_name)
+					add = False
+		if add:
+			optimized[str(line_num)] = line
+		
+	with open(ifile, 'w', encoding='utf-8') as f:
+		for i in range(1, line_num+1):
+			if str(i) in optimized:
+				f.writelines(optimized[str(i)])

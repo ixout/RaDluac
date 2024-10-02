@@ -36,6 +36,7 @@ if __name__ == '__main__':
 	parser.add_argument("-v", dest="vendor", type=str, help="The name of the target device vendor\nSupports:\nxiaomi,tplink,official")
 	parser.add_argument("-d", action="store_true", default=False, help="Use luadec to decompile otherwise use unluac")
 	parser.add_argument("-s", action="store_true", default=False, help="Keep the restored standard format luac file")
+	parser.add_argument("-u", action="store_true", default=False, help="Remove some redundant statements from the generated code, Only valid for unluac result(Temporarily used for testing)")
 	
 	args = parser.parse_args()
 	
@@ -67,6 +68,8 @@ if __name__ == '__main__':
 		status = Decompile(input_file, output_file, Version)
 		if status:
 			logging.error("Failed")
+		if args.u and not args.d:
+			utils.call_optimizer(output_file)
 		sys.exit(status)
 	
 	lua_mod = utils.choose_module(vendor)
@@ -92,4 +95,6 @@ if __name__ == '__main__':
 		logging.error("failed")
 	if not args.s:
 		os.system("rm "+tmp_file)
+	if args.u and not args.d:
+		utils.call_optimizer(output_file)
 	sys.exit(status)

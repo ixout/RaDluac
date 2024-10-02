@@ -1,19 +1,44 @@
 #!/bin/bash
 
-if [ ! $1 ]; then
-	echo "Usage: runall <vendor>"
-	exit 1
+if [ -z "$1" ]; then
+    echo "Usage: runall <vendor> [-sdu]"
+    exit 1
 fi
-vendor=$1
+
+options="-d -s -u"
+vendors="xiaomi tplink"
+
+if ! [[ $vendors =~ $1 ]]; then
+    echo "Invalid vendor. Valid options are: $vendors"
+    exit 1
+else
+    vendor=$1
+fi
+
+d=""
+s=""
+u=""
+
+for arg in "${@:2}"; do
+    case "$arg" in
+        -d)
+            d="-d"
+            ;;
+        -s)
+            s="-s"
+            ;;
+        -u)
+            u="-u"
+            ;;
+    esac
+done
+
 script_path=$(realpath "$0")
 script_dir=$(dirname "$script_path")
 current_dir=$(pwd)
-runpath=$script_dir"/run"
+runpath="$script_dir/run"
 
 find "$current_dir" -type f -name "*.lua" ! -name "*lua_dis.lua" | \
-while read -r lua_file; \
-do
-	
-	$runpath -i $lua_file -v $vendor
-	
+while read -r lua_file; do
+    $runpath -i "$lua_file" -v "$vendor" $d $s $u
 done

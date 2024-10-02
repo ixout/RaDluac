@@ -59,3 +59,15 @@ def IsVendorMatch(mod, data):
 	header = data[:length]
 	
 	return header == mod.Header
+	
+def call_optimizer(input_file):
+	
+	selfpath = dirpath()
+	
+	optimizer = selfpath + "/optimizer"
+	
+	cmd = [optimizer, input_file]
+	
+	ret = subprocess.run(cmd)
+	
+	return ret.returncode
