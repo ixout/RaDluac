@@ -8,7 +8,7 @@ Since the code decompiled by unluac contains a lot of redundant code, I wrote a 
 
 
 
-## Thanks to
+## Thanks for
 
 [luaAnalyzer](https://github.com/no1rr/luaAnalyzer)
 
