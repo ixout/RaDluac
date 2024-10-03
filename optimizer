@@ -1,6 +1,5 @@
 #!/bin/python
 import re
-import os
 import sys
 
 v_pattern = r'L\d+_\d+'
@@ -19,20 +18,44 @@ func_pattern = r'^function\s+(L\d+_\d+)\s*\((.*)\)\s*$'
 #Matches the function declaration
 target_pattern = r'^\s*L.*$'
 #Matches the statements to handle
+glo_pattern = r'^(L\d+_\d+)\s*=\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*$'
+#Matches the global function defs
 optimized = {}
 maybe_opts = {}
 func = {}
 line_num = 0
+before_global = True
+glo_opts = {}
+glo_dels = []
 
 def delete_line(num):
 	
 	if str(num) in optimized:
 		del optimized[str(num)]
+		
+def handle_globals():
+	for key in optimized:
+		string = optimized[key]
+		if '(' not in string:
+			match = re.match(glo_pattern, string)
+			if match:
+				left = match.group(1)
+				right = match.group(2)
+				glo_opts[left] = right
+				glo_dels.append((int(key)))
+				
+	for idx in glo_dels:
+		delete_line(idx)
 
 def line_hadnle(string):
 
 	if string.find("{") != -1:
 		return string
+		
+	matches = re.findall(v_pattern, string)
+	for match in matches:
+		if match in glo_opts:
+			string = string.replace(match, glo_opts[match])
 	
 	e_pos = string.find('=')
 	
@@ -133,6 +156,9 @@ if __name__ == '__main__':
 		line_num += 1
 		add = True
 		if line.startswith('function'):
+			if before_global:
+				handle_globals()
+				before_global = False
 			match = re.match(func_pattern, line)
 			func_lab = match.group(1)
 			func[func_lab] = str(line_num)
@@ -151,6 +177,5 @@ if __name__ == '__main__':
 			optimized[str(line_num)] = line
 		
 	with open(ifile, 'w', encoding='utf-8') as f:
-		for i in range(1, line_num+1):
-			if str(i) in optimized:
-				f.writelines(optimized[str(i)])
+		for key in optimized.keys():
+			f.writelines(optimized[key])
