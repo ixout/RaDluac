@@ -113,8 +113,8 @@ def line_hadnle(string):
 					del maybe_opts[var]
 		return left_a + '=' +right_a
 	
-	match = re.match(vs_pattern, string)
-	return string			
+	return string
+
 if __name__ == '__main__':
 	
 	ifile = sys.argv[1]
