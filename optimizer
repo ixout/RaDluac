@@ -4,14 +4,21 @@ import os
 import sys
 
 v_pattern = r'L\d+_\d+'
+#Matches the single var
 vv_pattern = r'^\s*(L\d+_\d+)\s*=\s*(L\d+_\d+)\s*$'
+#Matches the var = var
 vs_pattern = r'^\s*(L\d+_\d+)\s*=\s*(.*)\s*$'
+#Matches the var = string
 mvs_pattern = r'^\s*(L\d+_\d+)(\s*,\s*(L\d+_\d+))+\s*=\s*(.*)\s*$'
+#Matches the var,var.. = any(any)
 fv_pattern = r'^(\s*L\d+_\d+\[\d+\])\s*=\s*(\s*L\d+_\d+)\s*$'
+#Matches the var[num] = var
 fn_pattern = r'^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(L\d+_\d+)\s*$'
+#Matches the funcname = var
 func_pattern = r'^function\s+(L\d+_\d+)\s*\((.*)\)\s*$'
+#Matches the function declaration
 target_pattern = r'^\s*L.*$'
-pa_pattern = r'\(.+?\)'
+#Matches the statements to handle
 optimized = {}
 maybe_opts = {}
 func = {}
@@ -114,7 +121,7 @@ def line_hadnle(string):
 		return left_a + '=' +right_a
 	
 	return string
-
+			
 if __name__ == '__main__':
 	
 	ifile = sys.argv[1]
